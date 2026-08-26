@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AlertaBogotá - Gestión de Riesgos</title>
+    <!-- FontAwesome para Iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #121212;
+            --bg-card: #1e1e1e;
+            --accent-red: #ff3b30;
+            --accent-orange: #ff9500;
+            --accent-blue: #0a84ff;
+            --accent-green: #30d158;
+            --text-main: #ffffff;
+            --text-muted: #a0a0a0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Header */
+        header {
+            background-color: rgba(30, 30, 30, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .brand i {
+            color: var(--accent-red);
+            font-size: 1.4rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-icon {
+            background: #2c2c2e;
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-icon.active {
+            background: var(--accent-red);
+        }
+
+        /* Risk Filter Bar (Chips horizontales para móvil) */
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            padding: 10px 16px;
+            background-color: var(--bg-card);
+            overflow-x: auto;
+            white-space: nowrap;
+            z-index: 90;
+            scrollbar-width: none; /* Firefox */
+        }
+
+        .filter-bar::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
+        }
+
+        .chip {
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: #2c2c2e;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .chip.active {
+            background: #3a3a3c;
+            color: white;
+            border-color: var(--accent-red);
+        }
+
+        /* Map Container */
+        #map-container {
+            flex: 1;
+            position: relative;
+            width: 100%;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Bottom Sheet UI (Móvil UX) */
+        .bottom-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--bg-card);
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            max-height: 45vh;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.6);
+            transition: transform 0.3s ease;
+        }
+
+        .sheet-handle {
+            width: 40px;
+            height: 4px;
+            background: #555;
+            border-radius: 2px;
+            margin: 10px auto 5px auto;
+        }
+
+        .sheet-header {
+            padding: 5px 16px 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2c2c2e;
+        }
+
+        .sheet-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .alerts-list {
+            padding: 12px 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .alert-item {
+            background-color: #2c2c2e;
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .alert-item:active {
+            transform: scale(0.98);
+        }
+
+        .alert-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .alert-info {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 2px;
+        }
+
+        .alert-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* FAB Button (Reportar/Alerta sonora manual) */
+        .fab {
+            position: absolute;
+            bottom: calc(45vh + 15px);
+            right: 16px;
+            background-color: var(--accent-red);
+            color: white;
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            box-shadow: 0 4px 15px rgba(255, 59, 48, 0.5);
+            border: none;
+            cursor: pointer;
+            z-index: 95;
+            transition: transform 0.2s;
+        }
+
+        .fab:active {
+            transform: scale(0.9);
+        }
+
+        /* Modal para Nueva Alerta */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            width: 100%;
+            max-width: 400px;
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: #2c2c2e;
+            border: 1px solid #3a3a3c;
+            color: white;
+            font-size: 0.95rem;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent-red);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        /* Modal / Toast Alerta Sonora activa */
+        .sound-banner {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-red);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            z-index: 150;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 0.8; transform: translateX(-50%) scale(0.98); }
+            to { opacity: 1; transform: translateX(-50%) scale(1.02); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Encabezado Móvil -->
+    <header>
+        <div class="brand">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>AlertaBogotá</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn-icon" id="soundToggleBtn" onclick="toggleAudio()" title="Activar/Desactivar Alarma">
+                <i class="fa-solid fa-volume-xmark" id="soundIcon"></i>
+            </button>
+            <button class="btn-icon" onclick="alert('Llamando a Emergencias 123 Bogota...')" style="background-color: var(--accent-red);">
+                <i class="fa-solid fa-phone"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Selector / Filtros de Riesgos -->
+    <div class="filter-bar">
+        <button class="chip active" onclick="filterRisk('todos', this)"><i class="fa-solid fa-layer-group"></i> Todos</button>
+        <button class="chip" onclick="filterRisk('sismo', this)"><i class="fa-solid fa-house-crack"></i> Sismos</button>
+        <button class="chip" onclick="filterRisk('inundacion', this)"><i class="fa-solid fa-water"></i> Inundaciones</button>
+        <button class="chip" onclick="filterRisk('incendio', this)"><i class="fa-solid fa-fire"></i> Incendios</button>
+        <button class="chip" onclick="filterRisk('deslizamiento', this)"><i class="fa-solid fa-hill-rockslide"></i> Deslizamientos</button>
+    </div>
+
+    <!-- Mapa -->
+    <div id="map-container">
+        <div id="soundBanner" class="sound-banner">
+            <i class="fa-solid fa-volume-high"></i> ALERTA SONORA EN CURSO
+        </div>
+        <div id="map"></div>
+        <button class="fab" onclick="openReportModal()" title="Emitir Alerta en Coordenadas">
+            <i class="fa-solid fa-plus"></i>
+        </button>
+    </div>
+
+    <!-- Panel Inferior (Bottom Sheet UX) -->
+    <div class="bottom-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <span class="sheet-title">Eventos Activos</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted);" id="eventCount">0 reportes</span>
+        </div>
+        <div class="alerts-list" id="alertsList">
+            <!-- Las alertas se cargarán dinámicamente -->
+        </div>
+    </div>
+
+    <!-- Modal Formulario para emitir alerta personalizada -->
+    <div class="modal" id="reportModal">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 15px;">Emitir Alerta en Coordenadas</h3>
+            <div class="form-group">
+                <label>Tipo de Riesgo</label>
+                <select id="riskType" class="form-control">
+                    <option value="sismo">Sismo</option>
+                    <option value="inundacion">Inundación</option>
+                    <option value="incendio">Incendio Forestal</option>
+                    <option value="deslizamiento">Deslizamiento</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Título / Sector</label>
+                <input type="text" id="riskTitle" class="form-control" placeholder="Ej: Chapinero Alto">
+            </div>
+            <div class="form-group">
+                <label>Latitud</label>
+                <input type="number" step="any" id="riskLat" class="form-control" value="4.6500">
+            </div>
+            <div class="form-group">
+                <label>Longitud</label>
+                <input type="number" step="any" id="riskLng" class="form-control" value="-74.0600">
+            </div>
+            <button class="btn-submit" onclick="submitCustomAlert()">
+                <i class="fa-solid fa-bullhorn"></i> Emitir y Sonar Alerta
+            </button>
+            <button class="btn-submit" style="background: transparent; color: var(--text-muted); margin-top: 5px;" onclick="closeReportModal()">Cancelar</button>
+        </div>
+    </div>
+
+    <script>
+        let map;
+        let markers = [];
+        let audioCtx = null;
+        let isAudioEnabled = false;
+        let alarmOscillator = null;
+
+        const bogotaCenter = { lat: 4.7110, lng: -74.0721 };
+
+        // Base de datos de alertas iniciales
+        let alertData = [
+            { id: 1, type: 'sismo', title: 'Sismo Detectado', location: 'Mesa de Los Santos (Sentido en Bogotá)', lat: 6.82, lng: -73.15, level: 'alto', color: '#ff3b30', icon: 'fa-house-crack' },
+            { id: 2, type: 'inundacion', title: 'Inundación Vía Pública', location: 'Autopista Norte con Calle 170', lat: 4.7550, lng: -74.0450, level: 'medio', color: '#0a84ff', icon: 'fa-water' },
+            { id: 3, type: 'incendio', title: 'Incendio Forestal', location: 'Cerros Orientales - Q. La Vieja', lat: 4.6520, lng: -74.0530, level: 'alto', color: '#ff9500', icon: 'fa-fire' },
+            { id: 4, type: 'deslizamiento', title: 'Riesgo de Deslizamiento', location: 'Localidad de Usme', lat: 4.4800, lng: -74.1100, level: 'medio', color: '#a2845e', icon: 'fa-hill-rockslide' }
+        ];
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 11,
+                center: bogotaCenter,
+                disableDefaultUI: true, // Estilo limpio para móvil
+                zoomControl: true,
+                styles: [
+                    { elementType: "geometry", stylers: [{ color: "#1d2c4d" }] },
+                    { elementType: "labels.text.stroke", stylers: [{ color: "#1a3646" }] },
+                    { elementType: "labels.text.fill", stylers: [{ color: "#8ec3b9" }] },
+                    { featureType: "water", elementType: "geometry", stylers: [{ color: "#0e1626" }] }
+                ]
+            });
+
+            // Permitir seleccionar coordenadas haciendo tap en el mapa
+            map.addListener("click", (e) => {
+                document.getElementById('riskLat').value = e.latLng.lat().toFixed(4);
+                document.getElementById('riskLng').value = e.latLng.lng().toFixed(4);
+                openReportModal();
+            });
+
+            renderAlerts('todos');
+        }
+
+        // Sistema de Alerta Sonora usando Web Audio API
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function toggleAudio() {
+            initAudio();
+            isAudioEnabled = !isAudioEnabled;
+            const btn = document.getElementById('soundToggleBtn');
+            const icon = document.getElementById('soundIcon');
+            
+            if (isAudioEnabled) {
+                btn.classList.add('active');
+                icon.className = 'fa-solid fa-volume-high';
+                playSiren(800, 0.3); // Tono de prueba
+            } else {
+                btn.classList.remove('active');
+                icon.className = 'fa-solid fa-volume-xmark';
+                stopSiren();
+            }
+        }
+
+        function playSiren(freq = 900, duration = 2.5) {
+            if (!isAudioEnabled) return;
+            initAudio();
+
+            document.getElementById('soundBanner').style.display = 'flex';
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sawtooth';
+            
+            // Frecuencia modulada estilo sirena
+            const now = audioCtx.currentTime;
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.exponentialRampToValueAtTime(1200, now + 0.5);
+            osc.frequency.exponentialRampToValueAtTime(600, now + 1.0);
+            osc.frequency.exponentialRampToValueAtTime(1200, now + 1.5);
+
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(now);
+            osc.stop(now + duration);
+
+            setTimeout(() => {
+                document.getElementById('soundBanner').style.display = 'none';
+            }, duration * 1000);
+        }
+
+        function stopSiren() {
+            document.getElementById('soundBanner').style.display = 'none';
+        }
+
+        // Renderizado y Filtro de alertas
+        function renderAlerts(filterType) {
+            // Limpiar marcadores existentes
+            markers.forEach(m => m.setMap(null));
+            markers = [];
+
+            const listContainer = document.getElementById('alertsList');
+            listContainer.innerHTML = '';
+
+            const filtered = filterType === 'todos' 
+                ? alertData 
+                : alertData.filter(a => a.type === filterType);
+
+            document.getElementById('eventCount').innerText = `${filtered.length} reportes`;
+
+            filtered.forEach(alert => {
+                // Crear Marcador en Google Maps
+                const circle = new google.maps.Circle({
+                    strokeColor: alert.color,
+                    strokeOpacity: 0.8,
+                    strokeWeight: 2,
+                    fillColor: alert.color,
+                    fillOpacity: 0.35,
+                    map: map,
+                    center: { lat: alert.lat, lng: alert.lng },
+                    radius: 1200
+                });
+
+                const marker = new google.maps.Marker({
+                    position: { lat: alert.lat, lng: alert.lng },
+                    map: map,
+                    title: alert.title
+                });
+
+                marker.addListener("click", () => {
+                    map.panTo(marker.getPosition());
+                    map.setZoom(13);
+                    playSiren(1000, 2);
+                });
+
+                markers.push(circle);
+                markers.push(marker);
+
+                // Crear ítem de lista UI Móvil
+                const item = document.createElement('div');
+                item.className = 'alert-item';
+                item.onclick = () => {
+                    map.panTo({ lat: alert.lat, lng: alert.lng });
+                    map.setZoom(13);
+                    playSiren(1000, 2);
+                };
+
+                item.innerHTML = `
+                    <div class="alert-icon" style="background-color: ${alert.color};">
+                        <i class="fa-solid ${alert.icon}"></i>
+                    </div>
+                    <div class="alert-info">
+                        <div class="alert-title">${alert.title}</div>
+                        <div class="alert-meta">${alert.location}</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right" style="color: #555; font-size: 0.8rem;"></i>
+                `;
+
+                listContainer.appendChild(item);
+            });
+        }
+
+        function filterRisk(type, element) {
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            element.classList.add('active');
+            renderAlerts(type);
+        }
+
+        // Modal para Emitir Alerta
+        function openReportModal() {
+            document.getElementById('reportModal').style.display = 'flex';
+        }
+
+        function closeReportModal() {
+            document.getElementById('reportModal').style.display = 'none';
+        }
+
+        function submitCustomAlert() {
+            const type = document.getElementById('riskType').value;
+            const title = document.getElementById('riskTitle').value || 'Alerta Ciudadana';
+            const lat = parseFloat(document.getElementById('riskLat').value);
+            const lng = parseFloat(document.getElementById('riskLng').value);
+
+            let color = '#ff3b30';
+            let icon = 'fa-triangle-exclamation';
+
+            if (type === 'inundacion') { color = '#0a84ff'; icon = 'fa-water'; }
+            if (type === 'incendio') { color = '#ff9500'; icon = 'fa-fire'; }
+            if (type === 'deslizamiento') { color = '#a2845e'; icon = 'fa-hill-rockslide'; }
+
+            const newAlert = {
+                id: Date.now(),
+                type: type,
+                title: `¡ALERTA! ${title}`,
+                location: `Lat: ${lat.toFixed(3)}, Lng: ${lng.toFixed(3)}`,
+                lat: lat,
+                lng: lng,
+                level: 'alto',
+                color: color,
+                icon: icon
+            };
+
+            alertData.unshift(newAlert);
+            closeReportModal();
+
+            // Activar Audio automáticamente para esta nueva alerta
+            if (!isAudioEnabled) {
+                toggleAudio();
+            } else {
+                playSiren(1200, 3);
+            }
+
+            // Centrar mapa
+            map.panTo({ lat: lat, lng: lng });
+            map.setZoom(13);
+
+            renderAlerts('todos');
+        }
+    </script>
+
+    <!-- Google Maps Javascript API -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB9ofSeBPx2jPba5vnWu8x2whcVgeo5ztI&callback=initMap"></script>
+</body>
+</html>
